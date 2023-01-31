@@ -93,8 +93,8 @@ def index_of_point(mapData, Xp):
     Xstarty = mapData.info.origin.position.y
     width = mapData.info.width
     Data = mapData.data
-    index = int(	(floor((Xp[1]-Xstarty)/resolution) *
-                  width)+(floor((Xp[0]-Xstartx)/resolution)))
+    index = int((floor((Xp[1]-Xstarty)/resolution) *
+                 width)+(floor((Xp[0]-Xstartx)/resolution)))
     return index
 
 
