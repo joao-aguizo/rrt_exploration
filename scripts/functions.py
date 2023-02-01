@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import rospy
 import tf
 from numpy import array
@@ -12,60 +14,51 @@ from numpy import inf
 
 
 class robot:
-    goal = MoveBaseGoal()
-    start = PoseStamped()
-    end = PoseStamped()
+    _position = array([.0, .0])
 
-    def __init__(self, name):
+    def __init__(self):
         self.assigned_point = []
-        self.name = name
-        self.global_frame = rospy.get_param('~global_frame', '/map')
+        self.global_frame = rospy.get_param('~global_frame', 'map')
         self.robot_frame = rospy.get_param('~robot_frame', 'base_link')
         self.plan_service = rospy.get_param(
-            '~plan_service', '/move_base_node/NavfnROS/make_plan')
-        self.listener = tf.TransformListener()
-        self.listener.waitForTransform(
-            self.global_frame, self.name+'/'+self.robot_frame, rospy.Time(0), rospy.Duration(10.0))
-        cond = 0
-        while cond == 0:
-            try:
-                rospy.loginfo('Waiting for the robot transform')
-                (trans, rot) = self.listener.lookupTransform(
-                    self.global_frame, self.name+'/'+self.robot_frame, rospy.Time(0))
-                cond = 1
-            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                cond == 0
-        self.position = array([trans[0], trans[1]])
-        self.assigned_point = self.position
-        self.client = actionlib.SimpleActionClient(
-            self.name+'/move_base', MoveBaseAction)
-        self.client.wait_for_server()
-        robot.goal.target_pose.header.frame_id = self.global_frame
-        robot.goal.target_pose.header.stamp = rospy.Time.now()
+            '~plan_service', 'move_base_node/NavfnROS/make_plan')
 
-        rospy.wait_for_service(self.name+self.plan_service)
-        self.make_plan = rospy.ServiceProxy(
-            self.name+self.plan_service, GetPlan)
-        robot.start.header.frame_id = self.global_frame
-        robot.end.header.frame_id = self.global_frame
+        # transform listener for tf transformations
+        self.tf_listener = tf.TransformListener()
+
+        # initialize assigned point to unit
+        self.assigned_point = self.getPosition()
+
+        self.client = actionlib.SimpleActionClient(
+            'move_base', MoveBaseAction)
+        self.client.wait_for_server()
+
+        rospy.loginfo("Done Initializing Robot!")
 
     def getPosition(self):
-        cond = 0
-        while cond == 0:
-            try:
-                (trans, rot) = self.listener.lookupTransform(
-                    self.global_frame, self.name+'/'+self.robot_frame, rospy.Time(0))
-                cond = 1
-            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                cond == 0
-        self.position = array([trans[0], trans[1]])
-        return self.position
+        try:
+            self.tf_listener.waitForTransform(
+                self.global_frame, self.robot_frame, rospy.Time(), rospy.Duration(3.0))
+            (trans, _) = self.tf_listener.lookupTransform(
+                self.global_frame, self.robot_frame, rospy.Time())
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException, tf.Exception):
+            rospy.logwarn(
+                "Failed to get current robot's position! Returning last available position...")
+            return self._position
+
+        self._position = array([trans[0], trans[1]])
+        return self._position
 
     def sendGoal(self, point):
-        robot.goal.target_pose.pose.position.x = point[0]
-        robot.goal.target_pose.pose.position.y = point[1]
-        robot.goal.target_pose.pose.orientation.w = 1.0
-        self.client.send_goal(robot.goal)
+        # create the move_base goal
+        goal = MoveBaseGoal()
+        goal.target_pose.header.frame_id = self.global_frame
+        goal.target_pose.pose.position.x = point[0]
+        goal.target_pose.pose.position.y = point[1]
+        goal.target_pose.pose.orientation.w = 1.0
+
+        # send the goal to move_base action server
+        self.client.send_goal(goal)
         self.assigned_point = array(point)
 
     def cancelGoal(self):
@@ -76,14 +69,27 @@ class robot:
         return self.client.get_state()
 
     def makePlan(self, start, end):
-        robot.start.pose.position.x = start[0]
-        robot.start.pose.position.y = start[1]
-        robot.end.pose.position.x = end[0]
-        robot.end.pose.position.y = end[1]
-        start = self.listener.transformPose(self.name+'/map', robot.start)
-        end = self.listener.transformPose(self.name+'/map', robot.end)
-        plan = self.make_plan(start=start, goal=end, tolerance=0.0)
-        return plan.plan.poses
+        start = PoseStamped()
+        start.header.frame_id = self.global_frame
+        start.pose.position.x = start[0]
+        start.pose.position.y = start[1]
+
+        end = PoseStamped()
+        end.header.frame_id = self.global_frame
+        end.pose.position.x = end[0]
+        end.pose.position.y = end[1]
+
+        start = self.tf_listener.transformPose(self.global_frame, start)
+        end = self.tf_listener.transformPose(self.global_frame, end)
+
+        rospy.wait_for_service(self.plan_service)
+        srv = rospy.ServiceProxy(self.plan_service, GetPlan)
+        try:
+            res = srv(start=start, goal=end, tolerance=0.0)
+        except rospy.ServiceException as exc:
+            rospy.logwarn("Service did not process request: {}".format(exc))
+
+        return res.plan.poses
 # ________________________________________________________________________________
 
 
@@ -185,7 +191,6 @@ def Nearest(V, x):
 
 def Nearest2(V, x):
     n = inf
-    result = 0
     for i in range(0, len(V)):
         n1 = norm(V[i]-x)
 

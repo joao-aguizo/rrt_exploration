@@ -40,7 +40,7 @@ def mapCallBack(data):
 
 def node():
     global frontiers, mapData, global1, global2, global3, globalmaps
-    rospy.init_node('assigner', anonymous=False)
+    rospy.init_node('assigner', anonymous=False, log_level=rospy.WARN)
 
     # fetching all parameters
     map_topic = rospy.get_param('~map_topic', '/map')
@@ -63,23 +63,26 @@ def node():
     rospy.Subscriber(map_topic, OccupancyGrid, mapCallBack)
     rospy.Subscriber(frontiers_topic, PointArray, callBack)
 #---------------------------------------------------------------------------------------------------------------
-
-# wait if no frontier is received yet
+    rospy.logwarn("len(frontiers): {}".format(len(frontiers)))
+    
+    r = rospy.Rate(1)
+    # wait if no frontier is received yet
     while len(frontiers) < 1:
-        pass
+        r.sleep()
+
     centroids = copy(frontiers)
-#wait if map is not received yet
+    
+    rospy.logwarn("len(centroids): {}".format(len(centroids)))
+    #wait if map is not received yet
     while (len(mapData.data) < 1):
-        pass
+        r.sleep()
 
     robots = []
-    if len(namespace) > 0:
-        for i in range(0, n_robots):
-            robots.append(robot(namespace+str(i+namespace_init_count)))
-    elif len(namespace) == 0:
-        robots.append(robot(namespace))
+    robots.append(robot())
     for i in range(0, n_robots):
         robots[i].sendGoal(robots[i].getPosition())
+   
+    rospy.loginfo("robots: {}".format(robots))
 #-------------------------------------------------------------------------
 #---------------------     Main   Loop     -------------------------------
 #-------------------------------------------------------------------------
