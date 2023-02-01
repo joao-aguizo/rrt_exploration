@@ -2,7 +2,7 @@
 
 import rospy
 import tf
-from numpy import array
+from numpy import array, array_equal
 import actionlib
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from nav_msgs.srv import GetPlan
@@ -10,7 +10,6 @@ from geometry_msgs.msg import PoseStamped
 from numpy import floor
 from numpy.linalg import norm
 from numpy import inf
-# ________________________________________________________________________________
 
 
 class robot:
@@ -49,7 +48,7 @@ class robot:
         self._position = array([trans[0], trans[1]])
         return self._position
 
-    def sendGoal(self, point):
+    def sendGoal(self, point, active_cb=None, done_cb=None):
         # create the move_base goal
         goal = MoveBaseGoal()
         goal.target_pose.header.frame_id = self.global_frame
@@ -57,8 +56,13 @@ class robot:
         goal.target_pose.pose.position.y = point[1]
         goal.target_pose.pose.orientation.w = 1.0
 
+        if self.getState() is actionlib.GoalStatus.ACTIVE and \
+                array_equal(self.assigned_point, array(point)):
+            rospy.logdebug("Following best revenue centroid...")
+            return
+
         # send the goal to move_base action server
-        self.client.send_goal(goal)
+        self.client.send_goal(goal, active_cb=active_cb, done_cb=done_cb)
         self.assigned_point = array(point)
 
     def cancelGoal(self):
@@ -132,7 +136,8 @@ def informationGain(mapData, point, r):
 
 def discount(mapData, assigned_pt, centroids, infoGain, r):
     index = index_of_point(mapData, assigned_pt)
-    r_region = int(r/mapData.info.resolution)
+    resolution = mapData.info.resolution
+    r_region = int(r/resolution)
     init_index = index-r_region*(mapData.info.width+1)
     for n in range(0, 2*r_region+1):
         start = n*mapData.info.width+init_index
@@ -143,8 +148,7 @@ def discount(mapData, assigned_pt, centroids, infoGain, r):
                 for j in range(0, len(centroids)):
                     current_pt = centroids[j]
                     if(mapData.data[i] == -1 and norm(point_of_index(mapData, i)-current_pt) <= r and norm(point_of_index(mapData, i)-assigned_pt) <= r):
-                        # this should be modified, subtract the area of a cell, not 1
-                        infoGain[j] -= 1
+                        infoGain[j] -= (mapData.info.resolution**2)
     return infoGain
 # ________________________________________________________________________________
 
