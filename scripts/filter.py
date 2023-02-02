@@ -100,10 +100,9 @@ def main():
             # if there is only one frontier no need for clustering, i.e. centroids=frontiers
             centroids = tmp
 
-        # TODO: why override original variable?!?!?!
-        # _frontiers = copy(centroids)
+        # clearing old frontiers (only keeps centroids)
+        _frontiers = copy(centroids)
 
-        # clearing old frontiers
         z = 0
         while z < len(centroids):
             tmp = PointStamped()
