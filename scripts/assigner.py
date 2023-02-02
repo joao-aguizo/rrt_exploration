@@ -46,7 +46,7 @@ def done_cb(status, result):
     _status = Status.IDLE
 
 
-def node():
+def main():
     global _frontiers, _map, _status, _revenue
     rospy.init_node('assigner', anonymous=False, log_level=rospy.INFO)
 
@@ -133,7 +133,4 @@ def node():
 
 
 if __name__ == '__main__':
-    try:
-        node()
-    except rospy.ROSInterruptException:
-        pass
+    main()
