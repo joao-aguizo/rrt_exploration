@@ -11,6 +11,7 @@ from numpy import array, vstack, delete
 from functions import gridValue, informationGain
 from sklearn.cluster import MeanShift
 from rrt_exploration.msg import PointArray
+from sklearn.cluster import estimate_bandwidth
 
 _map = OccupancyGrid()
 _costmap = OccupancyGrid()
@@ -56,7 +57,9 @@ def node():
     # this can be smaller than the laser scanner range, >> smaller >>less computation time>> too small is not good, info gain won't be accurate
     info_radius = rospy.get_param('~info_radius', 1.0)
     robot_frame = rospy.get_param('~robot_frame', 'base_link')
-    rate = rospy.Rate(rospy.get_param('~rate', 100))
+    # negative values cause the node to estimate the clustering bandwith
+    mean_shift_bw = rospy.get_param('~cluster_mean_shift_bandwith', -1.0)
+    rate = rospy.Rate(rospy.get_param('~rate', 1))
 
     # subscribes to a map and costmap
     rospy.Subscriber("map", OccupancyGrid, map_cb)
@@ -79,13 +82,19 @@ def node():
             rospy.loginfo_once("Waiting for inputs...")
             continue
 
-        rospy.loginfo("Got them!")
+        rospy.loginfo_once("Got them!")
 
         # clustering frontier points
         centroids = []
         tmp = copy(_frontiers)
         if len(tmp) > 1:
-            ms = MeanShift(bandwidth=0.3)  # TODO: parameterize this
+            # if < 0  we estimate the bandwith
+            if mean_shift_bw < 0:
+                mean_shift_bw = estimate_bandwidth(tmp, n_jobs=-1)
+
+            rospy.logdebug("MeanShift bandwith: {}".format(mean_shift_bw))
+
+            ms = MeanShift(bandwidth=mean_shift_bw)
             ms.fit(tmp)
             centroids = ms.cluster_centers_  # centroids array is the centers of each cluster
         else:  # len(tmp) == 1, considering the first condition of the loop
@@ -141,8 +150,9 @@ def node():
         marker.color.b = 0.0/255.0
         marker.color.a = 1
 
-        for c in centroids:
-            marker.points.append(Point(x=c[0], y=c[1], z=.0))
+        tmp = copy(_frontiers)
+        for f in tmp:
+            marker.points.append(Point(x=f[0], y=f[1], z=.0))
 
         # publish frontiers
         frontiers_pub.publish(marker)

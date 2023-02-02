@@ -59,7 +59,7 @@ def node():
     # bigger than 1 (biase robot to continue exploring current region
     hysteresis_gain = rospy.get_param('~hysteresis_gain', 2.0)
     delay_after_assignement = rospy.get_param('~delay_after_assignement', 0.5)
-    rate = rospy.Rate(rospy.get_param('~rate', 100))
+    rate = rospy.Rate(rospy.get_param('~rate', 1))
 
     rospy.Subscriber("map", OccupancyGrid, map_cb)
     rospy.Subscriber("filtered_points", PointArray, points_cb)
