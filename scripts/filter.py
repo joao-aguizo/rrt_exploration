@@ -2,8 +2,8 @@
 
 import tf
 import rospy
-from copy import copy
-from visualization_msgs.msg import Marker
+from copy import copy, deepcopy
+from visualization_msgs.msg import Marker, MarkerArray
 from geometry_msgs.msg import Point
 from nav_msgs.msg import OccupancyGrid
 from geometry_msgs.msg import PointStamped
@@ -48,7 +48,7 @@ def costmap_cb(data):
     _costmap = data
 
 
-def node():
+def main():
     global _map, _costmap, _frontiers
     rospy.init_node('filter', anonymous=False)
 
@@ -70,8 +70,7 @@ def node():
     rospy.Subscriber("detected_points", PointStamped, callback=point_cb,
                      callback_args=[listener, robot_frame])
 
-    frontiers_pub = rospy.Publisher('frontiers', Marker, queue_size=10)
-    centroids_pub = rospy.Publisher('centroids', Marker, queue_size=10)
+    markers_pub = rospy.Publisher('markers', MarkerArray, queue_size=10)
     points_pub = rospy.Publisher('filtered_points', PointArray, queue_size=10)
 
     while not rospy.is_shutdown():
@@ -137,10 +136,12 @@ def node():
         # publish filtered points
         points_pub.publish(point_array)
 
+        # assemble all markers
+        marker_array = MarkerArray()
         # assemble frontiers marker message
         marker = Marker()
         marker.header.frame_id = _map.header.frame_id
-        marker.ns = "markers2"
+        marker.ns = "frontiers"
         marker.type = Marker.POINTS
         marker.pose.orientation.w = 1.0
         marker.scale.x = 0.2
@@ -154,24 +155,26 @@ def node():
         for f in tmp:
             marker.points.append(Point(x=f[0], y=f[1], z=.0))
 
-        # publish frontiers
-        frontiers_pub.publish(marker)
+        # append frontiers' marker
+        marker_array.markers.append(deepcopy(marker))
 
-        # re-use same marker message (TODO: possibly needs copying!)
-        marker.ns = "markers3"
+        # assemble centroids' marker message
+        marker.ns = "centroids"
         marker.id = 4
+        marker.scale.x = 1.0
+        marker.scale.y = 1.0
         marker.color.r = 0.0/255.0
         marker.points = []
 
         for c in centroids:
             marker.points.append(Point(x=c[0], y=c[1], z=.0))
 
-        # publish centroids
-        centroids_pub.publish(marker)
+        # append centroids' marker
+        marker_array.markers.append(deepcopy(marker))
+
+        # publish centroids and frontiers
+        markers_pub.publish(marker_array)
 
 
 if __name__ == '__main__':
-    try:
-        node()
-    except rospy.ROSInterruptException:
-        pass
+    main()
