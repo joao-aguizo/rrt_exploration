@@ -12,7 +12,8 @@
 
   <node pkg="rrt_exploration" type="global_rrt_detector" name="global_detector" output="screen">
   <param name="eta" value="$(arg Geta)"/>
-  <param name="map_topic" value="lio_sam/mapping/map_global/map"/>
+
+  <remap from="map" to="lio_sam/mapping/map_global/map"/>
   </node>
   
   <node pkg="rrt_exploration" type="local_rrt_detector" name="local_detector" output="screen">
