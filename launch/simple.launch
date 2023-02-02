@@ -2,9 +2,10 @@
 
 
 <launch>
-<arg name="eta" value="25.0"/>
-<arg name="Geta" value="50.0"/>
-<arg name="rate" value="1.0"/>
+<arg name="eta" default="25.0"/>
+<arg name="Geta" default="50.0"/>
+<arg name="info_radius" default="150.0"/>
+<arg name="rate" default="1.0"/>
 
 <param name="namespace_init_count" value="1"/>
 
@@ -22,7 +23,7 @@
  
   
   <node pkg="rrt_exploration" type="filter.py" name="filter" output="screen">
-  <param name="info_radius" value="50"/> 
+  <param name="info_radius" value="$(arg info_radius)"/> 
   <param name="robot_frame" value="base_link"/>
   <param name="costmap_clearing_threshold" value="70"/> 
   <param name="cluster_mean_shift_bandwith" value="-1" />
@@ -35,7 +36,7 @@
   
   <node pkg="rrt_exploration" type="assigner.py" name="assigner" output="screen">
   <param name="global_frame" value="map"/>
-  <param name="info_radius" value="50"/> 
+  <param name="info_radius" value="$(arg info_radius)"/> 
   <param name="info_multiplier" value="3.0"/> 
   <param name="hysteresis_radius" value="40.0"/> 
   <param name="hysteresis_gain" value="2.0"/> 
