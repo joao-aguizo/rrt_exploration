@@ -128,7 +128,7 @@ def informationGain(mapData, point, r):
         limit = ((start/mapData.info.width)+2)*mapData.info.width
         for i in range(start, end+1):
             if (i >= 0 and i < limit and i < len(mapData.data)):
-                if(mapData.data[i] == -1 and norm(array(point)-point_of_index(mapData, i)) <= r):
+                if mapData.data[i] == -1:
                     infoGain += 1
     return infoGain*(mapData.info.resolution**2)
 # ________________________________________________________________________________
