@@ -90,6 +90,8 @@ def main():
             # if < 0  we estimate the bandwith
             if mean_shift_bw < 0:
                 mean_shift_bw = estimate_bandwidth(tmp, n_jobs=-1)
+                if mean_shift_bw == 0:
+                    mean_shift_bw = 0.1
 
             rospy.logdebug("MeanShift bandwith: {}".format(mean_shift_bw))
 
@@ -117,7 +119,7 @@ def main():
             x = array([transformedPoint.point.x, transformedPoint.point.y])
 
             if gridValue(_costmap, x) > threshold or \
-                    (informationGain(_map, [centroids[z][0], centroids[z][1]], info_radius*0.5)) < 0.2:
+                    (informationGain(_map, [centroids[z][0], centroids[z][1]], info_radius)) < 0.2:
                 centroids = delete(centroids, (z), axis=0)
                 z = z-1
 
